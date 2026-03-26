@@ -147,7 +147,7 @@ export function Dashboard() {
   };
 
   // Upsert Prayer Log
-  const upsertPrayer = async (prayerId: string, state: PrayerState) => {
+  const upsertPrayer = async (prayerId: string, state: PrayerState, date: string) => {
     const validPrayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
     const sanitizedId = prayerId.toLowerCase().trim();
 
@@ -163,7 +163,7 @@ export function Dashboard() {
       .from('prayer_logs')
       .upsert({
         user_id: user.id,
-        date: selectedDate,
+        date: date,
         prayer_name: sanitizedId,
         is_prayed: state.performed,
         is_jamaah: state.congregation,
@@ -174,7 +174,7 @@ export function Dashboard() {
   };
 
   // Upsert Daily Habits
-  const upsertHabits = async (newHabits: typeof habits) => {
+  const upsertHabits = async (newHabits: typeof habits, date: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -182,7 +182,7 @@ export function Dashboard() {
       .from('daily_habits')
       .upsert({
         user_id: user.id,
-        date: selectedDate,
+        date: date,
         morning_adhkar: newHabits.morningAdhkar,
         evening_adhkar: newHabits.eveningAdhkar,
         sleep_adhkar: newHabits.sleepAdhkar,
@@ -206,7 +206,7 @@ export function Dashboard() {
 
   // Debounced Habit Upsert
   const debouncedUpsertHabits = useCallback(
-    debounce((h: typeof habits) => upsertHabits(h), 500),
+    debounce((h: typeof habits, d: string) => upsertHabits(h, d), 500),
     []
   );
 
@@ -226,7 +226,7 @@ export function Dashboard() {
       }
       
       const nextStates = { ...prev, [prayerId]: newState };
-      upsertPrayer(prayerId, newState);
+      upsertPrayer(prayerId, newState, selectedDate);
       return nextStates;
     });
   };
@@ -234,7 +234,7 @@ export function Dashboard() {
   const handleHabitToggle = (key: keyof typeof habits) => {
     setHabits((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      upsertHabits(next);
+      upsertHabits(next, selectedDate);
       return next;
     });
   };
@@ -242,7 +242,7 @@ export function Dashboard() {
   const handleCounterChange = (key: 'quranPages' | 'sunanRawatib', value: number) => {
     setHabits((prev) => {
       const next = { ...prev, [key]: value };
-      debouncedUpsertHabits(next);
+      debouncedUpsertHabits(next, selectedDate);
       return next;
     });
   };
