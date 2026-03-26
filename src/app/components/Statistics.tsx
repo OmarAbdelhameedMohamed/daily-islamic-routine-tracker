@@ -106,6 +106,7 @@ export function Statistics() {
       eveningAdhkar: 0,
       sleepAdhkar: 0,
       duhaPrayer: 0,
+      witrPrayer: 0,
       sunanRawatib: 0,
     };
 
@@ -155,6 +156,7 @@ export function Statistics() {
         if (dayHabit.evening_adhkar) habitStats.eveningAdhkar++;
         if (dayHabit.sleep_adhkar) habitStats.sleepAdhkar++;
         if (dayHabit.duha_prayer) habitStats.duhaPrayer++;
+        if (dayHabit.witr_prayer) habitStats.witrPrayer++;
         habitStats.sunanRawatib += (dayHabit.sunan_rawatib || 0);
       }
     }
@@ -163,7 +165,8 @@ export function Statistics() {
       { label: "أذكار الصباح", value: daysToFetch > 0 ? Math.round((habitStats.morningAdhkar / daysToFetch) * 100) : 0, color: "#2D6A4F" },
       { label: "أذكار المساء", value: daysToFetch > 0 ? Math.round((habitStats.eveningAdhkar / daysToFetch) * 100) : 0, color: "#40916C" },
       { label: "أذكار النوم", value: daysToFetch > 0 ? Math.round((habitStats.sleepAdhkar / daysToFetch) * 100) : 0, color: "#52B788" },
-      { label: "صلاة الضحى", value: daysToFetch > 0 ? Math.round((habitStats.duhaPrayer / daysToFetch) * 100) : 0, color: "#95D5B2" },
+      { label: "صلاة الضحى", value: daysToFetch > 0 ? Math.round((habitStats.duhaPrayer / daysToFetch) * 100) : 0, color: "#74C365" },
+      { label: "صلاة الوتر", value: daysToFetch > 0 ? Math.round((habitStats.witrPrayer / daysToFetch) * 100) : 0, color: "#95D5B2" },
     ];
 
     setChartData({

@@ -30,11 +30,13 @@ export function Dashboard() {
       prayers.map((p) => [p.id, { performed: false, congregation: false, isTakbir: false }])
     )
   );
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [habits, setHabits] = useState({
     morningAdhkar: false,
     eveningAdhkar: false,
     sleepAdhkar: false,
     duhaPrayer: false,
+    witrPrayer: false,
     quranPages: 0,
     sunanRawatib: 0,
   });
@@ -45,8 +47,9 @@ export function Dashboard() {
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === today;
 
-  // Fetch data on load
+  // Fetch data on load or when date changes
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -61,11 +64,13 @@ export function Dashboard() {
         .from('prayer_logs')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', today);
+        .eq('date', selectedDate);
 
       if (prayerError) console.error("Error fetching prayers:", prayerError);
       else if (prayerData) {
-        const newStates = { ...prayerStates };
+        const newStates = Object.fromEntries(
+          prayers.map((p) => [p.id, { performed: false, congregation: false, isTakbir: false }])
+        );
         prayerData.forEach(log => {
           const prayerId = log.prayer_name?.toLowerCase();
           if (newStates[prayerId]) {
@@ -84,7 +89,7 @@ export function Dashboard() {
         .from('daily_habits')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', today)
+        .eq('date', selectedDate)
         .maybeSingle();
 
       if (habitError) {
@@ -95,8 +100,20 @@ export function Dashboard() {
           eveningAdhkar: habitData.evening_adhkar ?? false,
           sleepAdhkar: habitData.sleep_adhkar ?? false,
           duhaPrayer: habitData.duha_prayer ?? false,
+          witrPrayer: habitData.witr_prayer ?? false,
           quranPages: habitData.quran_pages ?? 0,
           sunanRawatib: habitData.sunan_rawatib ?? 0,
+        });
+      } else {
+        // Reset habits if no data for the selected date
+        setHabits({
+          morningAdhkar: false,
+          eveningAdhkar: false,
+          sleepAdhkar: false,
+          duhaPrayer: false,
+          witrPrayer: false,
+          quranPages: 0,
+          sunanRawatib: 0,
         });
       }
 
@@ -105,7 +122,7 @@ export function Dashboard() {
         .from('user_custom_adhkar')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', today);
+        .eq('date', selectedDate);
 
       if (dhikrError) console.error("Error fetching dhikr:", dhikrError);
       else if (dhikrData) {
@@ -121,7 +138,13 @@ export function Dashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedDate]);
+
+  const changeDate = (days: number) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
 
   // Upsert Prayer Log
   const upsertPrayer = async (prayerId: string, state: PrayerState) => {
@@ -140,7 +163,7 @@ export function Dashboard() {
       .from('prayer_logs')
       .upsert({
         user_id: user.id,
-        date: today,
+        date: selectedDate,
         prayer_name: sanitizedId,
         is_prayed: state.performed,
         is_jamaah: state.congregation,
@@ -159,11 +182,12 @@ export function Dashboard() {
       .from('daily_habits')
       .upsert({
         user_id: user.id,
-        date: today,
+        date: selectedDate,
         morning_adhkar: newHabits.morningAdhkar,
         evening_adhkar: newHabits.eveningAdhkar,
         sleep_adhkar: newHabits.sleepAdhkar,
         duha_prayer: newHabits.duhaPrayer,
+        witr_prayer: newHabits.witrPrayer,
         quran_pages: newHabits.quranPages,
         sunan_rawatib: newHabits.sunanRawatib,
       }, { onConflict: 'user_id,date' });
@@ -232,7 +256,7 @@ export function Dashboard() {
       .from('user_custom_adhkar')
       .insert({
         user_id: user.id,
-        date: today,
+        date: selectedDate,
         adhkar_name: newDhikrName,
         target_count: newDhikrTarget,
         current_count: 0,
@@ -316,6 +340,36 @@ export function Dashboard() {
 
   return (
     <div className="p-4 space-y-5">
+      {/* Date Navigation */}
+      <div className="bg-white rounded-[20px] p-4 shadow-sm flex items-center justify-between">
+        <button
+          onClick={() => changeDate(-1)}
+          className="p-2 rounded-xl bg-[#F7FBF9] text-[#2D6A4F] hover:bg-[#95D5B2]/20 transition-colors"
+        >
+          <ChevronRight size={24} />
+        </button>
+        <div className="text-center">
+          <p className="text-[#2D6A4F] font-bold">
+            {new Date(selectedDate).toLocaleDateString("ar-SA", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+          {!isToday && (
+            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+              عرض تاريخ سابق
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => changeDate(1)}
+          className="p-2 rounded-xl bg-[#F7FBF9] text-[#2D6A4F] hover:bg-[#95D5B2]/20 transition-colors"
+        >
+          <ChevronLeft size={24} />
+        </button>
+      </div>
+
       {/* Daily Progress */}
       <div className="bg-white rounded-[20px] p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -413,6 +467,7 @@ export function Dashboard() {
           { key: "eveningAdhkar" as const, label: "أذكار المساء", icon: <Moon size={20} className="text-indigo-400" /> },
           { key: "sleepAdhkar" as const, label: "أذكار النوم", icon: <Bed size={20} className="text-purple-400" /> },
           { key: "duhaPrayer" as const, label: "صلاة الضحى", icon: <Sunrise size={20} className="text-orange-400" /> },
+          { key: "witrPrayer" as const, label: "صلاة الوتر", icon: <Moon size={20} className="text-indigo-600" /> },
         ].map((item) => (
           <label
             key={item.key}
